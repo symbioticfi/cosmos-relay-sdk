@@ -2,15 +2,18 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmttime "github.com/cometbft/cometbft/types/time"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -53,6 +56,8 @@ var (
 	flagStakingDenom      = "staking-denom"
 	flagCommitTimeout     = "commit-timeout"
 	flagSingleHost        = "single-host"
+
+	flagPrivKeysFile = "priv-keys-file"
 )
 
 type initArgs struct {
@@ -82,6 +87,7 @@ type startArgs struct {
 	printMnemonic bool
 	rpcAddress    string
 	timeoutCommit time.Duration
+	keyFile       string
 }
 
 func addTestnetFlagsToCmd(cmd *cobra.Command) {
@@ -113,6 +119,8 @@ func NewTestnetCmd(mm module.BasicManager, genBalIterator banktypes.GenesisBalan
 	}
 
 	testnetCmd.AddCommand(testnetStartCmd())
+	testnetCmd.AddCommand(generatePrivKeysFile())
+	testnetCmd.AddCommand(setupTestnetCmd())
 	testnetCmd.AddCommand(testnetInitFilesCmd(mm, genBalIterator))
 
 	return testnetCmd
@@ -202,7 +210,6 @@ Example:
 			args.apiAddress, _ = cmd.Flags().GetString(flagAPIAddress)
 			args.grpcAddress, _ = cmd.Flags().GetString(flagGRPCAddress)
 			args.printMnemonic, _ = cmd.Flags().GetBool(flagPrintMnemonic)
-
 			return startTestnet(cmd, args)
 		},
 	}
@@ -213,6 +220,71 @@ Example:
 	cmd.Flags().String(flagAPIAddress, "tcp://0.0.0.0:1317", "the address to listen on for REST API")
 	cmd.Flags().String(flagGRPCAddress, "0.0.0.0:9090", "the gRPC server address to listen on")
 	cmd.Flags().Bool(flagPrintMnemonic, true, "print mnemonic of first validator to stdout for manual testing")
+	return cmd
+}
+
+// setupTestnetCmd returns a cmd to setup a local multi validator testnet configuration
+func setupTestnetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "setup",
+		Short: "Setup configuration for multi-validator testnet",
+		RunE: func(cmd *cobra.Command, _ []string) (err error) {
+			args := startArgs{}
+			args.outputDir, _ = cmd.Flags().GetString(flagOutputDir)
+			args.chainID, _ = cmd.Flags().GetString(flags.FlagChainID)
+			args.minGasPrices, _ = cmd.Flags().GetString(server.FlagMinGasPrices)
+			args.numValidators, _ = cmd.Flags().GetInt(flagNumValidators)
+			args.algo, _ = cmd.Flags().GetString(flags.FlagKeyType)
+			args.enableLogging, _ = cmd.Flags().GetBool(flagEnableLogging)
+			args.rpcAddress, _ = cmd.Flags().GetString(flagRPCAddress)
+			args.apiAddress, _ = cmd.Flags().GetString(flagAPIAddress)
+			args.grpcAddress, _ = cmd.Flags().GetString(flagGRPCAddress)
+			args.printMnemonic, _ = cmd.Flags().GetBool(flagPrintMnemonic)
+			args.keyFile, _ = cmd.Flags().GetString(flagPrivKeysFile)
+			return setupTestnetConfig(cmd, args)
+		},
+	}
+
+	addTestnetFlagsToCmd(cmd)
+	cmd.Flags().Bool(flagEnableLogging, false, "Enable INFO logging of CometBFT validator nodes")
+	cmd.Flags().String(flagRPCAddress, "tcp://0.0.0.0:26657", "the RPC address to listen on")
+	cmd.Flags().String(flagAPIAddress, "tcp://0.0.0.0:1317", "the address to listen on for REST API")
+	cmd.Flags().String(flagGRPCAddress, "0.0.0.0:9090", "the gRPC server address to listen on")
+	cmd.Flags().Bool(flagPrintMnemonic, true, "print mnemonic of first validator to stdout for manual testing")
+	cmd.Flags().String(flagPrivKeysFile, "", "path to a file containing hex-encoded private keys for each validator, one per line. simapp will use this to setup the validators' keypairs. If not provided, random keys will be generated.")
+	return cmd
+}
+
+func generatePrivKeysFile() *cobra.Command {
+
+	var (
+		validatorCount int64
+		path           string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "gen-keys",
+		Short: "generates a file with all the private keys for the nodes written as hex strings",
+		RunE: func(cmd *cobra.Command, _ []string) (err error) {
+			// parse the path and get the dir and file
+			pathDir := filepath.Dir(path)
+			pathFile := filepath.Base(path)
+
+			keys := make([]string, validatorCount)
+			for i := int64(0); i < validatorCount; i++ {
+				privKey := ed25519.GenPrivKey()
+				keys[i] = hex.EncodeToString(privKey.Bytes())
+			}
+			if err := writeFile(pathFile, pathDir, []byte(strings.Join(keys, "\n"))); err != nil {
+				return err
+			}
+			fmt.Printf("Wrote %d keys to %s\n", validatorCount, path)
+			return nil
+		},
+	}
+
+	cmd.Flags().Int64VarP(&validatorCount, "validator-count", "v", 4, "Number of validator keys to generate")
+	cmd.Flags().StringVarP(&path, "path", "p", ".testnets/keys", "Path to save the generated keys")
 	return cmd
 }
 
@@ -590,6 +662,43 @@ func startTestnet(cmd *cobra.Command, args startArgs) error {
 		return err
 	}
 	testnet.Cleanup()
+
+	return nil
+}
+
+// setupTestnetConfig setup the config for running local testnet
+func setupTestnetConfig(cmd *cobra.Command, args startArgs) error {
+	networkConfig := network.DefaultConfig(simapp.NewTestNetworkFixture)
+
+	// Default networkConfig.ChainID is random, and we should only override it if chainID provided
+	// is non-empty
+	if args.chainID != "" {
+		networkConfig.ChainID = args.chainID
+	}
+	networkConfig.SigningAlgo = args.algo
+	networkConfig.MinGasPrices = args.minGasPrices
+	networkConfig.NumValidators = args.numValidators
+	networkConfig.EnableLogging = args.enableLogging
+	networkConfig.RPCAddress = args.rpcAddress
+	networkConfig.APIAddress = args.apiAddress
+	networkConfig.GRPCAddress = args.grpcAddress
+	networkConfig.PrintMnemonic = args.printMnemonic
+	networkConfig.TimeoutCommit = args.timeoutCommit
+	networkLogger := network.NewCLILogger(cmd)
+
+	baseDir := fmt.Sprintf("%s/%s", args.outputDir, networkConfig.ChainID)
+	if _, err := os.Stat(baseDir); !os.IsNotExist(err) {
+		return fmt.Errorf(
+			"testnests directory already exists for chain-id '%s': %s, please remove or select a new --chain-id",
+			networkConfig.ChainID, baseDir)
+	}
+
+	_, err := network.NewSymCustom(networkLogger, baseDir, networkConfig, args.keyFile)
+	if err != nil {
+		return err
+	}
+
+	networkLogger.Log("Testnet configuration setup complete")
 
 	return nil
 }

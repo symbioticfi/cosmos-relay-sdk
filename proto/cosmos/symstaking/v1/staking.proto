@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package cosmos.symstaking.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "cosmos/symstaking/v1/params.proto";
+import "tendermint/abci/types.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/symstaking/types";
+
+message StoreEpoch {
+  uint64 epoch = 1;
+}
+
+message LastValidatorSet {
+  uint64   epoch                                   = 1;
+  repeated tendermint.abci.ValidatorUpdate updates = 2 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}
+
+// Infraction indicates the infraction a validator commited.
+enum Infraction {
+  // UNSPECIFIED defines an empty infraction.
+  INFRACTION_UNSPECIFIED = 0;
+  // DOUBLE_SIGN defines a validator that double-signs a block.
+  INFRACTION_DOUBLE_SIGN = 1;
+  // DOWNTIME defines a validator that missed signing too many blocks.
+  INFRACTION_DOWNTIME = 2;
+}

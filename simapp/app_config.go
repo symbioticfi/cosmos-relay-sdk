@@ -1,6 +1,7 @@
 package simapp
 
 import (
+	"os"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -39,7 +40,6 @@ import (
 	_ "cosmossdk.io/x/nft/module" // import for side-effects
 	_ "cosmossdk.io/x/upgrade"    // import for side-effects
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
@@ -71,6 +71,10 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	_ "github.com/cosmos/cosmos-sdk/x/staking" // import for side-effects
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	_ "github.com/cosmos/cosmos-sdk/x/symslashing" // import for side-effects
+	symslashingtypes "github.com/cosmos/cosmos-sdk/x/symslashing/types"
+	_ "github.com/cosmos/cosmos-sdk/x/symstaking/module" // import for side-effects
+	symstakingtypes "github.com/cosmos/cosmos-sdk/x/symstaking/types"
 )
 
 var (
@@ -118,14 +122,17 @@ var (
 					distrtypes.ModuleName,
 					protocolpooltypes.ModuleName,
 					slashingtypes.ModuleName,
+					symslashingtypes.ModuleName,
 					evidencetypes.ModuleName,
 					stakingtypes.ModuleName,
+					symstakingtypes.ModuleName,
 					authz.ModuleName,
 					epochstypes.ModuleName,
 				},
 				EndBlockers: []string{
 					govtypes.ModuleName,
 					stakingtypes.ModuleName,
+					symstakingtypes.ModuleName,
 					feegrant.ModuleName,
 					group.ModuleName,
 					protocolpooltypes.ModuleName,
@@ -147,7 +154,9 @@ var (
 					banktypes.ModuleName,
 					distrtypes.ModuleName,
 					stakingtypes.ModuleName,
+					symstakingtypes.ModuleName,
 					slashingtypes.ModuleName,
+					symslashingtypes.ModuleName,
 					govtypes.ModuleName,
 					minttypes.ModuleName,
 					genutiltypes.ModuleName,
@@ -171,7 +180,9 @@ var (
 					banktypes.ModuleName,
 					distrtypes.ModuleName,
 					stakingtypes.ModuleName,
+					symstakingtypes.ModuleName,
 					slashingtypes.ModuleName,
+					symslashingtypes.ModuleName,
 					govtypes.ModuleName,
 					minttypes.ModuleName,
 					genutiltypes.ModuleName,
@@ -220,8 +231,18 @@ var (
 			}),
 		},
 		{
+			Name: symstakingtypes.ModuleName,
+			Config: appconfig.WrapAny(&symstakingtypes.Module{
+				RelayClientRpc: os.Getenv("SYMBIOTIC_RELAY_RPC"),
+			}),
+		},
+		{
 			Name:   slashingtypes.ModuleName,
 			Config: appconfig.WrapAny(&slashingmodulev1.Module{}),
+		},
+		{
+			Name:   symslashingtypes.ModuleName,
+			Config: appconfig.WrapAny(&symslashingtypes.Module{}),
 		},
 		{
 			Name: "tx",

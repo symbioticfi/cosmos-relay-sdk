@@ -1,0 +1,16 @@
+syntax = "proto3";
+package cosmos.symstaking.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "cosmos/symstaking/v1/params.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/symstaking/types";
+
+// GenesisState defines the symstaking module's genesis state.
+message GenesisState {
+  // params defines all the parameters of the module.
+  Params params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+
+  uint64 genesis_epoch = 2;
+}
