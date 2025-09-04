@@ -16,7 +16,7 @@ require (
 	cosmossdk.io/x/tx v0.14.0
 	github.com/99designs/keyring v1.2.1
 	github.com/bgentry/speakeasy v0.2.0
-	github.com/bits-and-blooms/bitset v1.22.0
+	github.com/bits-and-blooms/bitset v1.24.0
 	github.com/chzyer/readline v1.5.1
 	github.com/cockroachdb/apd/v2 v2.0.2
 	github.com/cockroachdb/errors v1.12.0
@@ -229,5 +229,4 @@ replace (
 	golang.org/x/sys => golang.org/x/sys v0.33.0
 	golang.org/x/term => golang.org/x/term v0.32.0
 	golang.org/x/text => golang.org/x/text v0.25.0
-
 )
