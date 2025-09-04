@@ -6,6 +6,7 @@ import (
 	"io"
 
 	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/x/symstaking/abci"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/depinject"
@@ -44,6 +45,8 @@ import (
 	protocolpoolkeeper "github.com/cosmos/cosmos-sdk/x/protocolpool/keeper"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+	symslashingkeeper "github.com/cosmos/cosmos-sdk/x/symslashing/keeper"
+	symstakingkeeper "github.com/cosmos/cosmos-sdk/x/symstaking/keeper"
 )
 
 // DefaultNodeHome default home directories for the application daemon
@@ -84,6 +87,9 @@ type SimApp struct {
 	NFTKeeper          nftkeeper.Keeper
 	EpochsKeeper       epochskeeper.Keeper
 	ProtocolPoolKeeper protocolpoolkeeper.Keeper
+
+	SymStakingKeeper  *symstakingkeeper.Keeper
+	SymSlashingKeeper symslashingkeeper.Keeper
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -170,7 +176,9 @@ func NewSimApp(
 		&app.AccountKeeper,
 		&app.BankKeeper,
 		&app.StakingKeeper,
+		&app.SymStakingKeeper,
 		&app.SlashingKeeper,
+		&app.SymSlashingKeeper,
 		&app.MintKeeper,
 		&app.DistrKeeper,
 		&app.GovKeeper,
@@ -260,6 +268,12 @@ func NewSimApp(
 
 	// set custom ante handler
 	app.setAnteHandler(app.txConfig)
+
+	proposalHandlers := abci.NewProposalHandler(logger, app.SymStakingKeeper)
+	// Set the Prepare Proposal and Process Proposal handlers
+	app.SetPrepareProposal(proposalHandlers.PrepareProposal())
+	app.SetProcessProposal(proposalHandlers.ProcessProposal())
+	app.SetPreBlocker(proposalHandlers.PreBlocker())
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)

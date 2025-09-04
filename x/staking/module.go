@@ -160,7 +160,8 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.
 
 	cdc.MustUnmarshalJSON(data, &genesisState)
 
-	return am.keeper.InitGenesis(ctx, &genesisState)
+	am.keeper.InitGenesis(ctx, &genesisState)
+	return []abci.ValidatorUpdate{}
 }
 
 // ExportGenesis returns the exported genesis state as raw bytes for the staking
@@ -180,7 +181,8 @@ func (am AppModule) BeginBlock(ctx context.Context) error {
 // EndBlock returns the end blocker for the staking module. It returns no validator
 // updates.
 func (am AppModule) EndBlock(ctx context.Context) ([]abci.ValidatorUpdate, error) {
-	return am.keeper.EndBlocker(ctx)
+	_, err := am.keeper.EndBlocker(ctx)
+	return []abci.ValidatorUpdate{}, err
 }
 
 func init() {

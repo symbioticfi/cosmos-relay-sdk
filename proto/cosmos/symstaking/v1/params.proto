@@ -1,0 +1,21 @@
+syntax = "proto3";
+package cosmos.symstaking.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/symstaking/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (amino.name)      = "github.com/cosmos/cosmos-sdk/x/symstaking/Params";
+  option (gogoproto.equal) = true;
+
+  // validator_key_tag defines the key tag that will be used to derive the validator consensus pubkey from relays key
+  // list
+  uint32 validator_key_tag = 1;
+  // epoch_check_interval defines the cosmos block interval to check for epoch transition
+  int64 epoch_check_interval = 2;
+  // signing_key_tag defines the key tag that will be used to sign messages on relay like the slash message
+  uint32 signing_key_tag = 3;
+}

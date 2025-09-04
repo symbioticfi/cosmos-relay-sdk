@@ -1,0 +1,53 @@
+syntax = "proto3";
+package cosmos.symslashing.v1beta1;
+
+option go_package            = "github.com/cosmos/cosmos-sdk/x/symslashing/types";
+option (gogoproto.equal_all) = true;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "cosmos_proto/cosmos.proto";
+import "amino/amino.proto";
+
+// ValidatorSigningInfo defines a validator's signing info for monitoring their
+// liveness activity.
+message ValidatorSigningInfo {
+  option (gogoproto.equal) = true;
+
+  string address = 1 [(cosmos_proto.scalar) = "cosmos.ConsensusAddressString"];
+  // Height at which validator was first a candidate
+  int64 start_height = 2;
+  // Index which is incremented every time a validator is bonded in a block and
+  // _may_ have signed a pre-commit or not. This in conjunction with the
+  // signed_blocks_window param determines the index in the missed block bitmap.
+  int64 index_offset = 3;
+  // A counter of missed (unsigned) blocks. It is used to avoid unnecessary
+  // reads in the missed block bitmap.
+  int64 missed_blocks_counter = 4;
+}
+
+// Params represents the parameters used for by the slashing module.
+message Params {
+  option (amino.name) = "cosmos-sdk/x/symslashing/Params";
+
+  int64 signed_blocks_window  = 1;
+  bytes min_signed_per_window = 2 [
+    (cosmos_proto.scalar)  = "cosmos.Dec",
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
+    (gogoproto.nullable)   = false,
+    (amino.dont_omitempty) = true
+  ];
+  bytes slash_fraction_double_sign = 4 [
+    (cosmos_proto.scalar)  = "cosmos.Dec",
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
+    (gogoproto.nullable)   = false,
+    (amino.dont_omitempty) = true
+  ];
+  bytes slash_fraction_downtime = 5 [
+    (cosmos_proto.scalar)  = "cosmos.Dec",
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
+    (gogoproto.nullable)   = false,
+    (amino.dont_omitempty) = true
+  ];
+}

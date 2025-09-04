@@ -3,6 +3,7 @@ package network
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +18,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/node"
+	"github.com/cometbft/cometbft/privval"
 	cmtclient "github.com/cometbft/cometbft/rpc/client"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
@@ -341,6 +344,317 @@ func (s CLILogger) Logf(format string, args ...any) {
 // NewCLILogger creates a new CLILogger.
 func NewCLILogger(cmd *cobra.Command) CLILogger {
 	return CLILogger{cmd}
+}
+
+// NewSymCustom creates a new Network configuration for symbiotic specific testnet
+func NewSymCustom(l Logger, baseDir string, cfg Config, keyFile string) (*Network, error) {
+	// only one caller/test can create and use a network at a time
+	l.Log("acquiring test network lock")
+	lock.Lock()
+
+	privKeys := []ed25519.PrivKey{}
+	if keyFile != "" {
+		keyBz, err := os.ReadFile(keyFile)
+		if err != nil {
+			lock.Unlock()
+			return nil, err
+		}
+		for _, k := range strings.Split(strings.TrimSpace(string(keyBz)), "\n") {
+			if len(k) == 0 {
+				continue
+			}
+			decoded, err := hex.DecodeString(k)
+			if err != nil {
+				l.Logf("could not decode hex key %s: %v", k, err)
+				continue
+			}
+			privKeys = append(privKeys, ed25519.PrivKey(decoded))
+		}
+		cfg.NumValidators = len(privKeys)
+	}
+
+	network := &Network{
+		Logger:     l,
+		BaseDir:    baseDir,
+		Validators: make([]*Validator, cfg.NumValidators),
+		Config:     cfg,
+	}
+
+	l.Logf("preparing test network with chain-id \"%s\"\n", cfg.ChainID)
+
+	monikers := make([]string, cfg.NumValidators)
+	nodeIDs := make([]string, cfg.NumValidators)
+	valPubKeys := make([]cryptotypes.PubKey, cfg.NumValidators)
+
+	var (
+		genAccounts []authtypes.GenesisAccount
+		genBalances []banktypes.Balance
+		genFiles    []string
+	)
+
+	buf := bufio.NewReader(os.Stdin)
+
+	// generate private keys, node IDs, and initial transactions
+	for i := range cfg.NumValidators {
+		appCfg := srvconfig.DefaultConfig()
+		appCfg.Pruning = cfg.PruningStrategy
+		appCfg.MinGasPrices = cfg.MinGasPrices
+		appCfg.API.Enable = true
+		appCfg.API.Swagger = false
+		appCfg.Telemetry.Enabled = false
+
+		ctx := server.NewDefaultContext()
+		cmtCfg := ctx.Config
+		cmtCfg.Consensus.TimeoutCommit = cfg.TimeoutCommit
+
+		// Only allow the first validator to expose an RPC, API and gRPC
+		// server/client due to CometBFT in-process constraints.
+		apiAddr := ""
+		cmtCfg.RPC.ListenAddress = ""
+		appCfg.GRPC.Enable = false
+		appCfg.GRPCWeb.Enable = false
+		apiListenAddr := ""
+		if i == 0 {
+			if cfg.APIAddress != "" {
+				apiListenAddr = cfg.APIAddress
+			} else {
+				if len(portPool) == 0 {
+					return nil, fmt.Errorf("failed to get port for API server")
+				}
+				port := <-portPool
+				apiListenAddr = fmt.Sprintf("tcp://0.0.0.0:%s", port)
+			}
+
+			appCfg.API.Address = apiListenAddr
+			apiURL, err := url.Parse(apiListenAddr)
+			if err != nil {
+				return nil, err
+			}
+			apiAddr = fmt.Sprintf("http://%s:%s", apiURL.Hostname(), apiURL.Port())
+
+			if cfg.RPCAddress != "" {
+				cmtCfg.RPC.ListenAddress = cfg.RPCAddress
+			} else {
+				if len(portPool) == 0 {
+					return nil, fmt.Errorf("failed to get port for RPC server")
+				}
+				port := <-portPool
+				cmtCfg.RPC.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%s", port)
+			}
+
+			if cfg.GRPCAddress != "" {
+				appCfg.GRPC.Address = cfg.GRPCAddress
+			} else {
+				if len(portPool) == 0 {
+					return nil, fmt.Errorf("failed to get port for GRPC server")
+				}
+				port := <-portPool
+				appCfg.GRPC.Address = fmt.Sprintf("0.0.0.0:%s", port)
+			}
+			appCfg.GRPC.Enable = true
+			appCfg.GRPCWeb.Enable = true
+		}
+
+		logger := log.NewNopLogger()
+		if cfg.EnableLogging {
+			logger = log.NewLogger(os.Stdout) // TODO(mr): enable selection of log destination.
+		}
+
+		ctx.Logger = logger
+
+		nodeDirName := fmt.Sprintf("node%d", i)
+		nodeDir := filepath.Join(network.BaseDir, nodeDirName, "simd")
+		clientDir := filepath.Join(network.BaseDir, nodeDirName, "simcli")
+		gentxsDir := filepath.Join(network.BaseDir, "gentxs")
+
+		err := os.MkdirAll(filepath.Join(nodeDir, "config"), 0o755)
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.MkdirAll(clientDir, 0o755)
+		if err != nil {
+			return nil, err
+		}
+
+		cmtCfg.SetRoot(nodeDir)
+		cmtCfg.Moniker = nodeDirName
+		monikers[i] = nodeDirName
+
+		if len(portPool) == 0 {
+			return nil, fmt.Errorf("failed to get port for Proxy server")
+		}
+		port := <-portPool
+		proxyAddr := fmt.Sprintf("tcp://0.0.0.0:%s", port)
+		cmtCfg.ProxyApp = proxyAddr
+
+		if len(portPool) == 0 {
+			return nil, fmt.Errorf("failed to get port for Proxy server")
+		}
+		port = <-portPool
+		p2pAddr := fmt.Sprintf("tcp://0.0.0.0:%s", port)
+		cmtCfg.P2P.ListenAddress = p2pAddr
+		cmtCfg.P2P.AddrBookStrict = false
+		cmtCfg.P2P.AllowDuplicateIP = true
+
+		if len(privKeys) != 0 {
+			pvKeyFile := cmtCfg.PrivValidatorKeyFile()
+			if err := os.MkdirAll(filepath.Dir(pvKeyFile), 0o777); err != nil {
+				return nil, fmt.Errorf("could not create directory %q: %w", filepath.Dir(pvKeyFile), err)
+			}
+
+			pvStateFile := cmtCfg.PrivValidatorStateFile()
+			if err := os.MkdirAll(filepath.Dir(pvStateFile), 0o777); err != nil {
+				return nil, fmt.Errorf("could not create directory %q: %w", filepath.Dir(pvStateFile), err)
+			}
+			privval.NewFilePV(privKeys[i], cmtCfg.PrivValidatorKeyFile(), cmtCfg.PrivValidatorStateFile()).Save()
+		}
+		nodeID, pubKey, err := genutil.InitializeNodeValidatorFiles(cmtCfg)
+		if err != nil {
+			return nil, err
+		}
+
+		nodeIDs[i] = nodeID
+		valPubKeys[i] = pubKey
+
+		kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, clientDir, buf, cfg.Codec, cfg.KeyringOptions...)
+		if err != nil {
+			return nil, err
+		}
+
+		keyringAlgos, _ := kb.SupportedAlgorithms()
+		algo, err := keyring.NewSigningAlgoFromString(cfg.SigningAlgo, keyringAlgos)
+		if err != nil {
+			return nil, err
+		}
+
+		var mnemonic string
+		if i < len(cfg.Mnemonics) {
+			mnemonic = cfg.Mnemonics[i]
+		}
+
+		addr, secret, err := testutil.GenerateSaveCoinKey(kb, nodeDirName, mnemonic, true, algo)
+		if err != nil {
+			return nil, err
+		}
+
+		info := map[string]string{"secret": secret}
+		infoBz, err := json.Marshal(info)
+		if err != nil {
+			return nil, err
+		}
+
+		// save private key seed words
+		err = writeFile(fmt.Sprintf("%v.json", "key_seed"), clientDir, infoBz)
+		if err != nil {
+			return nil, err
+		}
+
+		balances := sdk.NewCoins(
+			sdk.NewCoin(fmt.Sprintf("%stoken", nodeDirName), cfg.AccountTokens),
+			sdk.NewCoin(cfg.BondDenom, cfg.StakingTokens),
+		)
+
+		genFiles = append(genFiles, cmtCfg.GenesisFile())
+		genBalances = append(genBalances, banktypes.Balance{Address: addr.String(), Coins: balances.Sort()})
+		genAccounts = append(genAccounts, authtypes.NewBaseAccount(addr, nil, 0, 0))
+
+		commission, err := sdkmath.LegacyNewDecFromStr("0.5")
+		if err != nil {
+			return nil, err
+		}
+
+		createValMsg, err := stakingtypes.NewMsgCreateValidator(
+			sdk.ValAddress(addr).String(),
+			valPubKeys[i],
+			sdk.NewCoin(cfg.BondDenom, cfg.BondedTokens),
+			stakingtypes.NewDescription(nodeDirName, "", "", "", ""),
+			stakingtypes.NewCommissionRates(commission, sdkmath.LegacyOneDec(), sdkmath.LegacyOneDec()),
+			sdkmath.OneInt(),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		p2pURL, err := url.Parse(p2pAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		memo := fmt.Sprintf("%s@%s:%s", nodeIDs[i], p2pURL.Hostname(), p2pURL.Port())
+		fee := sdk.NewCoins(sdk.NewCoin(fmt.Sprintf("%stoken", nodeDirName), sdkmath.NewInt(0)))
+		txBuilder := cfg.TxConfig.NewTxBuilder()
+		err = txBuilder.SetMsgs(createValMsg)
+		if err != nil {
+			return nil, err
+		}
+		txBuilder.SetFeeAmount(fee)    // Arbitrary fee
+		txBuilder.SetGasLimit(1000000) // Need at least 100386
+		txBuilder.SetMemo(memo)
+
+		txFactory := tx.Factory{}
+		txFactory = txFactory.
+			WithChainID(cfg.ChainID).
+			WithMemo(memo).
+			WithKeybase(kb).
+			WithTxConfig(cfg.TxConfig)
+
+		err = tx.Sign(context.Background(), txFactory, nodeDirName, txBuilder, true)
+		if err != nil {
+			return nil, err
+		}
+
+		txBz, err := cfg.TxConfig.TxJSONEncoder()(txBuilder.GetTx())
+		if err != nil {
+			return nil, err
+		}
+		err = writeFile(fmt.Sprintf("%v.json", nodeDirName), gentxsDir, txBz)
+		if err != nil {
+			return nil, err
+		}
+		srvconfig.WriteConfigFile(filepath.Join(nodeDir, "config", "app.toml"), appCfg)
+
+		clientCtx := client.Context{}.
+			WithKeyringDir(clientDir).
+			WithKeyring(kb).
+			WithHomeDir(cmtCfg.RootDir).
+			WithChainID(cfg.ChainID).
+			WithInterfaceRegistry(cfg.InterfaceRegistry).
+			WithCodec(cfg.Codec).
+			WithLegacyAmino(cfg.LegacyAmino).
+			WithTxConfig(cfg.TxConfig).
+			WithAccountRetriever(cfg.AccountRetriever).
+			WithNodeURI(cmtCfg.RPC.ListenAddress)
+
+		// Provide ChainID here since we can't modify it in the Comet config.
+		ctx.Viper.Set(flags.FlagChainID, cfg.ChainID)
+
+		network.Validators[i] = &Validator{
+			AppConfig:  appCfg,
+			ClientCtx:  clientCtx,
+			Ctx:        ctx,
+			Dir:        filepath.Join(network.BaseDir, nodeDirName),
+			NodeID:     nodeID,
+			PubKey:     pubKey,
+			Moniker:    nodeDirName,
+			RPCAddress: cmtCfg.RPC.ListenAddress,
+			P2PAddress: cmtCfg.P2P.ListenAddress,
+			APIAddress: apiAddr,
+			Address:    addr,
+			ValAddress: sdk.ValAddress(addr),
+		}
+	}
+
+	err := initGenFiles(cfg, genAccounts, genBalances, genFiles)
+	if err != nil {
+		return nil, err
+	}
+	err = collectGenFiles(cfg, network.Validators, network.BaseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return network, nil
 }
 
 // New creates a new Network for integration tests or in-process testnets run via the CLI
