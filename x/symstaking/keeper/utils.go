@@ -44,12 +44,20 @@ func (k *Keeper) GetValidatorSet(ctx context.Context, epoch uint64) ([]types.Val
 }
 
 func (k *Keeper) GetLatestEpoch(ctx context.Context) (uint64, error) {
-	resp, err := k.relayClient.GetCurrentEpoch(ctx, &v1.GetCurrentEpochRequest{})
+	// list through all settlement chains and find the lowest committed epoch
+	resp, err := k.relayClient.GetLastAllCommitted(ctx, &v1.GetLastAllCommittedRequest{})
 	if err != nil {
 		return 0, err
 	}
 
-	return resp.GetEpoch(), nil
+	// find the lowest epoch
+	responseEpoch := uint64(0)
+	for _, chainInfo := range resp.EpochInfos {
+		if responseEpoch == 0 || chainInfo.LastCommittedEpoch < responseEpoch {
+			responseEpoch = chainInfo.LastCommittedEpoch
+		}
+	}
+	return responseEpoch, nil
 }
 
 // extractConsensusPubKey extracts the consensus public key from the key list

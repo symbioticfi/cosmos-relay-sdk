@@ -9,7 +9,7 @@ sidebar_position: 1
 ## Running SimApp with Symbiotic Relay 
 
 1. Need go 1.24+
-2. All the following commands are to be ran on the root of repo.
+2. All the following commands are to be run in the root of repo.
 2. Run `make build`.
 3. Run `./build/simd testnet gen-keys -v 5` this generates 5 validator keys and stores them in `.testnets/keys` file.
 4. The Key file contains the node consensus private keys (ed25519), these keys should be added to the validator info in the relay key registry with the key tag - 43
