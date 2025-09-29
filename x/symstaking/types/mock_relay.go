@@ -33,9 +33,13 @@ func (m *MockRelayClient) GetCurrentEpoch(ctx context.Context, in *v1.GetCurrent
 	}, nil
 }
 
-func (m *MockRelayClient) GetSuggestedEpoch(ctx context.Context, in *v1.GetSuggestedEpochRequest, opts ...grpc.CallOption) (*v1.GetSuggestedEpochResponse, error) {
-	return &v1.GetSuggestedEpochResponse{
-		Epoch: m.currentEpoch,
+func (m *MockRelayClient) GetLastAllCommitted(ctx context.Context, in *v1.GetLastAllCommittedRequest, opts ...grpc.CallOption) (*v1.GetLastAllCommittedResponse, error) {
+	return &v1.GetLastAllCommittedResponse{
+		EpochInfos: map[uint64]*v1.ChainEpochInfo{
+			0: &v1.ChainEpochInfo{
+				LastCommittedEpoch: m.currentEpoch,
+			},
+		},
 	}, nil
 }
 
