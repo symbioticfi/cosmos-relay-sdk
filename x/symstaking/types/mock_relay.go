@@ -61,8 +61,8 @@ func (m *MockRelayClient) SignMessage(ctx context.Context, in *v1.SignMessageReq
 		return nil, err
 	}
 	return &v1.SignMessageResponse{
-		RequestHash: hexutil.Encode(hasher.Sum(nil)),
-		Epoch:       m.currentEpoch,
+		RequestId: hexutil.Encode(hasher.Sum(nil)),
+		Epoch:     m.currentEpoch,
 	}, nil
 }
 
