@@ -88,7 +88,7 @@ func (k Keeper) SlashWithInfractionReason(ctx context.Context, consAddr sdk.Cons
 	if err != nil {
 		return err
 	}
-	slashRequestHash, err := k.sk.SlashWithInfractionReason(ctx, pk.Bytes(), distributionHeight, power, fraction, infraction)
+	slashRequestID, err := k.sk.SlashWithInfractionReason(ctx, pk.Bytes(), distributionHeight, power, fraction, infraction)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (k Keeper) SlashWithInfractionReason(ctx context.Context, consAddr sdk.Cons
 			sdk.NewAttribute(types.AttributeKeyAddress, consAddr.String()),
 			sdk.NewAttribute(types.AttributeKeyPower, fmt.Sprintf("%d", power)),
 			reasonAttr,
-			sdk.NewAttribute(types.AttributeKeySlashRequestHash, slashRequestHash),
+			sdk.NewAttribute(types.AttributeKeySlashRequestID, slashRequestID),
 		),
 	)
 	return nil

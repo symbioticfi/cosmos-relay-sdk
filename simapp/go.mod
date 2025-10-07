@@ -120,7 +120,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
@@ -179,7 +179,7 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/symbioticfi/relay v0.2.1-0.20250925112257-b403f256a5cf // indirect
+	github.com/symbioticfi/relay v0.2.1-0.20251007054923-75b5800f0a69 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
@@ -190,7 +190,7 @@ require (
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.4.0-alpha.0.0.20240404170359-43604f3112c5 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.36.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.58.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
@@ -245,18 +245,19 @@ replace (
 
 replace (
 	github.com/dgraph-io/badger/v4 => github.com/dgraph-io/badger/v4 v4.2.0
-
+	github.com/consensys/gnark => github.com/consensys/gnark v0.14.0
+	github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.19.0
 	github.com/go-logr/logr => github.com/go-logr/logr v1.4.2
 	github.com/google/flatbuffers => github.com/google/flatbuffers v1.12.1
 	github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.15.1
 	github.com/stretchr/testify => github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0
-	go.opentelemetry.io/otel => go.opentelemetry.io/otel v1.34.0
-	go.opentelemetry.io/otel/metric => go.opentelemetry.io/otel/metric v1.34.0
-	go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v1.34.0
-	go.opentelemetry.io/otel/sdk/metric => go.opentelemetry.io/otel/sdk/metric v1.34.0
-	go.opentelemetry.io/otel/trace => go.opentelemetry.io/otel/trace v1.34.0
+	go.opentelemetry.io/otel => go.opentelemetry.io/otel v1.38.0
+	go.opentelemetry.io/otel/metric => go.opentelemetry.io/otel/metric v1.38.0
+	go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v1.38.0
+	go.opentelemetry.io/otel/sdk/metric => go.opentelemetry.io/otel/sdk/metric v1.38.0
+	go.opentelemetry.io/otel/trace => go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/mock => go.uber.org/mock v0.5.2
 	go.uber.org/multierr => go.uber.org/multierr v1.10.0
 	golang.org/x/crypto => golang.org/x/crypto v0.38.0

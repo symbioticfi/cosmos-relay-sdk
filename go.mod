@@ -55,7 +55,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	github.com/symbioticfi/relay v0.2.1-0.20250925112257-b403f256a5cf
+	github.com/symbioticfi/relay v0.2.1-0.20251007054923-75b5800f0a69
 	github.com/tendermint/go-amino v0.16.0
 	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.42.0
@@ -116,7 +116,7 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
@@ -215,6 +215,9 @@ retract (
 )
 
 replace (
+	// Required by symbioticfi/relay
+	github.com/consensys/gnark => github.com/consensys/gnark v0.14.0
+	github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.19.0
 	github.com/dgraph-io/badger/v4 => github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/google/flatbuffers => github.com/google/flatbuffers v1.12.1
 	github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1

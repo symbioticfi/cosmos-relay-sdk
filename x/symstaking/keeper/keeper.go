@@ -276,7 +276,7 @@ func (k *Keeper) SlashWithInfractionReason(ctx context.Context, validatorPubKey 
 	if err != nil {
 		return "", errors.Wrap(err, "could not sign message")
 	}
-	return resp.RequestHash, nil
+	return resp.GetRequestId(), nil
 }
 
 // IterateValidators iterates through the validator set and perform the provided function
