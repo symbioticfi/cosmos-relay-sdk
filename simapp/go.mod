@@ -244,9 +244,9 @@ replace (
 )
 
 replace (
-	github.com/dgraph-io/badger/v4 => github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/consensys/gnark => github.com/consensys/gnark v0.14.0
 	github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.19.0
+	github.com/dgraph-io/badger/v4 => github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/go-logr/logr => github.com/go-logr/logr v1.4.2
 	github.com/google/flatbuffers => github.com/google/flatbuffers v1.12.1
 	github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
